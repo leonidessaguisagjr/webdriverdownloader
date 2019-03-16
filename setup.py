@@ -10,12 +10,12 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='webdriverdownloader',
-      version='0.1.dev3',
-      description='Module for facilitating download and deploy of WebDriver binaries.',
+      version='1.0.0',
+      description='Python module and CLI tool for facilitating download and deploy of WebDriver binaries.',
       long_description=long_description,
       long_description_content_type='text/x-rst',
       classifiers=[
-            "Development Status :: 3 - Alpha",
+            "Development Status :: 5 - Production/Stable",
             "Environment :: Console",
             "Intended Audience :: Developers",
             "Intended Audience :: End Users/Desktop",
@@ -36,7 +36,7 @@ setup(name='webdriverdownloader',
       author_email='leonidessaguisagjr@gmail.com',
       license='MIT',
       packages=['webdriverdownloader'],
-      install_requires=['requests', 'tqdm'],
+      install_requires=['beautifulsoup4', 'requests', 'tqdm'],
       include_package_data=True,
       zip_safe=False,
       entry_points={

@@ -34,7 +34,7 @@ The following classes are available:
 Status
 ------
 
-Currently being developed/tested using Python 2.7.15 and 3.6.5 on macOS and Windows 10.
+Currently being developed/tested using Python 2.7.16 and 3.7.2 on macOS and Windows 10.
 
 
 Example module usage

@@ -1,20 +1,21 @@
 import abc
-import glob
 import logging
 import os
 import os.path
+from pathlib import Path
 import platform
-import requests
 import shutil
 import stat
 import sys
 import tarfile
 try:
-    from urlparse import urlparse  # Python 2.x import
+    from urlparse import urlparse, urlsplit  # Python 2.x import
 except ImportError:
-    from urllib.parse import urlparse  # Python 3.x import
+    from urllib.parse import urlparse, urlsplit  # Python 3.x import
 import zipfile
 
+from bs4 import BeautifulSoup
+import requests
 import tqdm
 
 
@@ -201,6 +202,7 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
     """
 
     gecko_driver_releases_api_url = "https://api.github.com/repos/mozilla/geckodriver/releases/"
+    gecko_driver_releases_ui_url = "https://github.com/mozilla/geckodriver/releases/"
 
     def get_driver_filename(self):
         if platform.system() == "Windows":
@@ -212,10 +214,13 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
         if version == "latest":
             info = requests.get(self.gecko_driver_releases_api_url + version)
             if info.status_code != 200:
-                error_message = "Error attempting to get version info, got status code: {0}".format(info.status_code)
-                logger.error(error_message)
-                raise RuntimeError(error_message)
-            ver = info.json()['tag_name']
+                info_message = "Error attempting to get version info via API, got status code: {0}".format(info.status_code)
+                logger.info(info_message)
+                resp = requests.get(self.gecko_driver_releases_ui_url + version)
+                if resp.status_code == 200:
+                    ver = Path(urlsplit(resp.url).path).name
+            else:
+                ver = info.json()['tag_name']
         else:
             ver = version
         return os.path.join(self.download_root, "gecko", ver)
@@ -230,16 +235,26 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
         :returns: The download URL for the Gecko (Mozilla Firefox) driver binary.
         """
         if version == "latest":
-            gecko_driver_version_release_url = self.gecko_driver_releases_api_url + version
+            gecko_driver_version_release_api_url = self.gecko_driver_releases_api_url + version
+            gecko_driver_version_release_ui_url = self.gecko_driver_releases_ui_url + version
         else:
-            gecko_driver_version_release_url = self.gecko_driver_releases_api_url + "tags/" + version
-        logger.debug("Attempting to access URL: {0}".format(gecko_driver_version_release_url))
-        info = requests.get(gecko_driver_version_release_url)
+            gecko_driver_version_release_api_url = self.gecko_driver_releases_api_url + "tags/" + version
+            gecko_driver_version_release_ui_url = self.gecko_driver_releases_ui_url + "tags/" + version
+        logger.debug("Attempting to access URL: {0}".format(gecko_driver_version_release_api_url))
+        info = requests.get(gecko_driver_version_release_api_url)
         if info.status_code != 200:
-            error_message = "Error, unable to get info for gecko driver {0} release. Status code: {1}".format(
+            info_message = "Error, unable to get info for gecko driver {0} release. Status code: {1}".format(
                     version, info.status_code)
-            logger.error(error_message)
-            raise RuntimeError(error_message)
+            logger.info(info_message)
+            resp = requests.get(gecko_driver_version_release_ui_url, allow_redirects=True)
+            if resp.status_code == 200:
+                json_data = {"assets": []}
+            soup = BeautifulSoup(resp.text, features="html.parser")
+            urls = [resp.url + a['href'] for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
+            for url in urls:
+                json_data["assets"].append({"name": Path(urlsplit(url).path).name, "browser_download_url": url})
+        else:
+            json_data = info.json()
 
         os_name = platform.system()
         if os_name == "Darwin":
@@ -251,19 +266,18 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
         bitness = "64" if sys.maxsize > 2 ** 32 else "32"
         logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
-        json_data = info.json()
         filenames = [asset['name'] for asset in json_data['assets']]
         filename = [name for name in filenames if os_name in name]
         if len(filename) == 0:
-            error_message = "Error, unable to find a download for os: {0}".format(os_name)
-            logger.error(error_message)
-            raise RuntimeError(error_message)
+            info_message = "Error, unable to find a download for os: {0}".format(os_name)
+            logger.error(info_message)
+            raise RuntimeError(info_message)
         if len(filename) > 1:
             filename = [name for name in filenames if os_name + bitness in name]
             if len(filename) != 1:
-                error_message = "Error, unable to determine correct filename for {0}bit {1}".format(bitness, os_name)
-                logger.error(error_message)
-                raise RuntimeError(error_message)
+                info_message = "Error, unable to determine correct filename for {0}bit {1}".format(bitness, os_name)
+                logger.error(info_message)
+                raise RuntimeError(info_message)
         filename = filename[0]
 
         result = json_data['assets'][filenames.index(filename)]['browser_download_url']
@@ -341,6 +355,7 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
     """
 
     opera_chromium_driver_releases_api_url = "https://api.github.com/repos/operasoftware/operachromiumdriver/releases/"
+    opera_chromium_driver_releases_ui_url = "https://github.com/operasoftware/operachromiumdriver/releases/"
 
     def get_driver_filename(self):
         if platform.system() == "Windows":
@@ -352,10 +367,14 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
         if version == "latest":
             info = requests.get(self.opera_chromium_driver_releases_api_url + version)
             if info.status_code != 200:
-                error_message = "Error attempting to get version info, got status code: {0}".format(info.status_code)
-                logger.error(error_message)
-                raise RuntimeError(error_message)
-            ver = info.json()['tag_name']
+                info_message = "Error attempting to get version info via API, got status code: {0}".format(
+                    info.status_code)
+                logger.info(info_message)
+                resp = requests.get(self.opera_chromium_driver_releases_ui_url + version)
+                if resp.status_code == 200:
+                    ver = Path(urlsplit(resp.url).path).name
+            else:
+                ver = info.json()['tag_name']
         else:
             ver = version
         return os.path.join(self.download_root, "operachromium", ver)
@@ -370,16 +389,26 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
         :returns: The download URL for the Opera Chromium driver binary.
         """
         if version == "latest":
-            opera_chromium_driver_version_release_url = self.opera_chromium_driver_releases_api_url + version
+            opera_chromium_driver_version_release_api_url = self.opera_chromium_driver_releases_api_url + version
+            opera_chromium_driver_version_release_ui_url = self.opera_chromium_driver_releases_ui_url + version
         else:
-            opera_chromium_driver_version_release_url = self.opera_chromium_driver_releases_api_url + "tags/" + version
-        logger.debug("Attempting to access URL: {0}".format(opera_chromium_driver_version_release_url))
-        info = requests.get(opera_chromium_driver_version_release_url)
+            opera_chromium_driver_version_release_api_url = self.opera_chromium_driver_releases_api_url + "tags/" + version
+            opera_chromium_driver_version_release_ui_url = self.opera_chromium_driver_releases_ui_url + "tags/" + version
+        logger.debug("Attempting to access URL: {0}".format(opera_chromium_driver_version_release_api_url))
+        info = requests.get(opera_chromium_driver_version_release_api_url)
         if info.status_code != 200:
-            error_message = "Error, unable to get info for opera chromium driver {0} release. Status code: {1}".format(
-                    version, info.status_code)
-            logger.error(error_message)
-            raise RuntimeError(error_message)
+            info_message = "Error, unable to get info for opera chromium driver {0} release. Status code: {1}".format(
+                version, info.status_code)
+            logger.info(info_message)
+            resp = requests.get(opera_chromium_driver_version_release_ui_url, allow_redirects=True)
+            if resp.status_code == 200:
+                json_data = {"assets": []}
+            soup = BeautifulSoup(resp.text, features="html.parser")
+            urls = [resp.url + a['href'] for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
+            for url in urls:
+                json_data["assets"].append({"name": Path(urlsplit(url).path).name, "browser_download_url": url})
+        else:
+            json_data = info.json()
 
         os_name = platform.system()
         if os_name == "Darwin":
@@ -391,7 +420,6 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
         bitness = "64" if sys.maxsize > 2 ** 32 else "32"
         logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
-        json_data = info.json()
         filenames = [asset['name'] for asset in json_data['assets']]
         filename = [name for name in filenames if os_name in name]
         if len(filename) == 0:
