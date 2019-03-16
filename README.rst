@@ -17,6 +17,7 @@ Dependencies
 
 This module is dependent on the following additional packages:
 
+- `beautifulsoup4 <https://pypi.org/project/beautifulsoup4/>`_
 - `requests <https://pypi.org/project/requests/>`_
 - `tqdm <https://pypi.org/project/tqdm/>`_
 
