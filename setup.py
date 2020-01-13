@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='webdriverdownloader',
-      version='1.0.0.1',
+      version='1.1.0.1',
       description='Python module and CLI tool for facilitating download and deploy of WebDriver binaries.',
       long_description=long_description,
       long_description_content_type='text/x-rst',
