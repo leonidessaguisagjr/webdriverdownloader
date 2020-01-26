@@ -306,7 +306,7 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
                 os_name = "win"
             elif os_name == "Linux":
                 os_name = "linux"
-        if bitness is None:
+        if bitness == 'None':
             bitness = get_architecture_bitness()
             logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
@@ -390,7 +390,7 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
                 os_name = "win"
             elif os_name == "Linux":
                 os_name = "linux"
-        if bitness is None:
+        if bitness == 'None':
             bitness = get_architecture_bitness()
             logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
@@ -490,7 +490,7 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
                 os_name = "win"
             elif os_name == "Linux":
                 os_name = "linux"
-        if bitness is None:
+        if bitness == 'None':
             bitness = get_architecture_bitness()
             logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
