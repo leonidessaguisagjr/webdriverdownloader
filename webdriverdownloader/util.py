@@ -15,4 +15,5 @@ def get_architecture_bitness() -> str:
 
     :return: The bitness of the underlying architecture, as a str i.e. "32" or "64"
     """
+    # TODO: Try using py-cpuinfo https://pypi.org/project/py-cpuinfo/
     return "64" if sys.maxsize > 2 ** 32 else "32"

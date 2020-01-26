@@ -155,7 +155,7 @@ class WebDriverDownloaderBase:
             logger.error(error_message)
             raise RuntimeError(error_message)
 
-    def download_and_install(self, version="latest", os_name=None, bitness="None", show_progress_bar=True):
+    def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True):
         """
         Method for downloading a web driver binary, extracting it into the download directory and creating a symlink
         to the binary in the link directory.
