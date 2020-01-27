@@ -1,0 +1,46 @@
+name: tests
+on: [push]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install python dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install selenium pytest
+      shell: bash
+
+    - name: Ubuntu setup
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt update
+        sudo apt install firefox chromium-browser -y
+      shell: bash
+
+    - name: Macos Setup
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew cask install firefox google-chrome
+      shell: bash
+
+    - name: Windows setup
+      if: matrix.os == 'windows-latest'
+      uses: crazy-max/ghaction-chocolatey@v1
+      with:
+        args: install firefox googlechrome
+
+    - name: Test with selenium
+      run: |
+        python -m pytest tests -v
