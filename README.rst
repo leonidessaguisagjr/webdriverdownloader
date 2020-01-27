@@ -1,13 +1,28 @@
 ``webdriverdownloader``
 =======================
 
-Python module to facilitate downloading and deploying `WebDriver <https://www.w3.org/TR/webdriver/>`_ binaries.  The classes in this module can be used to automatically search for and download the latest version (or a specific version) of a WebDriver binary (will download to ``$HOME/webdriver`` or ``/usr/local/webdriver`` if run with ``sudo``), extract the binary from the downloaded archive and create a symlink in either ``/usr/local/bin`` (if run with ``sudo``) or ``$HOME/bin``.
+Python module to facilitate downloading and deploying `WebDriver <https://www.w3.org/TR/webdriver/>`_
+binaries.  The classes in this module can be used to automatically search for
+and download the latest version (or a specific version) of a WebDriver binary
+(will download to ``$HOME/webdriver`` or ``/usr/local/webdriver`` if run with
+``sudo``), extract the binary from the downloaded archive and create a symlink
+in either ``/usr/local/bin`` (if run with ``sudo``) or ``$HOME/bin``.
+
+Note: For non-root users, the ``$HOME/bin`` directory may not be in the search
+PATH.  If you are unable to add this directory your search path, a workaround
+is to capture the return value from the ``download()`` or ``download_and_install()``
+method (see the docstrings for those methods for more information on the return
+values) and pass the path to the downloaded webdriver binary as a parameter to
+the constructor for the Selenium WebDriver instance.  See the documentation for
+the ``executable_path`` parameter for the relevant WebDriver class for more
+information.
 
 
 Installation
 ------------
 
-This module is available on the Python Package Index (PyPI) and can be installed as follows:
+This module is available on the Python Package Index (PyPI) and can be
+installed as follows:
 
 ``pip install webdriverdownloader``
 
@@ -35,7 +50,8 @@ The following classes are available:
 Status
 ------
 
-Currently being developed/tested using Python 2.7.16 and 3.7.6 on macOS and Windows 10.
+Currently being developed/tested using Python 2.7.16 and 3.8.1 on macOS and
+Windows 10.
 
 
 Example module usage
@@ -61,7 +77,8 @@ Example::
 Command line tool
 -----------------
 
-There is a command-line tool that is also available.  After installing the package, it can be used as follows (Windows example)::
+There is a command-line tool that is also available.  After installing the
+package, it can be used as follows (Windows example)::
 
    > webdriverdownloader chrome:2.38 firefox opera:v.2.35
    Downloading WebDriver for browser: 'chrome'
@@ -81,7 +98,9 @@ There is a command-line tool that is also available.  After installing the packa
 
    WARNING: Path 'C:\Users\lsaguisag\bin' is not in the PATH environment variable.
 
-In the above example, a version was specified for Chrome and Opera while no version was specified for Firefox so the latest version of ``geckodriver`` was implicitly downloaded.
+In the above example, a version was specified for Chrome and Opera while no
+version was specified for Firefox so the latest version of ``geckodriver`` was
+implicitly downloaded.
 
 
 TODOs
@@ -93,6 +112,8 @@ TODOs
 License
 -------
 
-This is released under an MIT license.  See the ``LICENSE`` file in this repository for more information.
+This is released under an MIT license.  See the ``LICENSE`` file in this
+repository for more information.
 
-Consult the license terms of the providers of the WebDriver downloads prior to downloading / using the WebDrivers.
+Important: Consult the license terms of the providers of the WebDriver
+downloads prior to downloading / using the WebDrivers.
