@@ -13,9 +13,9 @@ import shutil
 import stat
 import tarfile
 try:
-    from urlparse import urlparse, urlsplit  # Python 2.x import
+    from urlparse import urljoin, urlparse, urlsplit  # Python 2.x import
 except ImportError:
-    from urllib.parse import urlparse, urlsplit  # Python 3.x import
+    from urllib.parse import urljoin, urlparse, urlsplit  # Python 3.x import
 import zipfile
 
 from bs4 import BeautifulSoup
@@ -292,7 +292,7 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
             if resp.status_code == 200:
                 json_data = {"assets": []}
             soup = BeautifulSoup(resp.text, features="html.parser")
-            urls = [resp.url + a['href'] for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
+            urls = [urljoin(resp.url, a['href']) for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
             for url in urls:
                 json_data["assets"].append({"name": Path(urlsplit(url).path).name, "browser_download_url": url})
         else:
@@ -476,7 +476,7 @@ class OperaChromiumDriverDownloader(WebDriverDownloaderBase):
             if resp.status_code == 200:
                 json_data = {"assets": []}
             soup = BeautifulSoup(resp.text, features="html.parser")
-            urls = [resp.url + a['href'] for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
+            urls = [urljoin(resp.url, a['href']) for a in soup.find_all('a', href=True) if r"/download/" in a['href']]
             for url in urls:
                 json_data["assets"].append({"name": Path(urlsplit(url).path).name, "browser_download_url": url})
         else:
