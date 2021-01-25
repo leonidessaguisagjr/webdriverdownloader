@@ -21,12 +21,17 @@ import zipfile
 from bs4 import BeautifulSoup
 import requests
 import tqdm
-
+import random
+import string
 from .util import get_architecture_bitness
 
 
 logger = logging.getLogger(__name__)
 
+def get_random_string(length):
+    letters = string.ascii_lowercase
+    result_str = ''.join(random.choice(letters) for i in range(length))
+    return result_str
 
 class WebDriverDownloaderBase:
     """Abstract Base Class for the different web driver downloaders
@@ -155,7 +160,7 @@ class WebDriverDownloaderBase:
             logger.error(error_message)
             raise RuntimeError(error_message)
 
-    def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True):
+    def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True, custom_folder=False):
         """
         Method for downloading a web driver binary, extracting it into the download directory and creating a symlink
         to the binary in the link directory.
@@ -184,6 +189,8 @@ class WebDriverDownloaderBase:
             error_message = "Unknown archive format: {0}".format(filename)
             logger.error(error_message)
             raise RuntimeError(error_message)
+        if custom_folder:
+            extract_dir += f'{get_random_string(6)}'
         if not os.path.isdir(extract_dir):
             os.makedirs(extract_dir)
             logger.debug("Created directory: {0}".format(extract_dir))
