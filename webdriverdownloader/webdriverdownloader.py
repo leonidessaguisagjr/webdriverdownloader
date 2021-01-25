@@ -211,7 +211,9 @@ class WebDriverDownloaderBase:
             os_name = platform.system()
         if os_name in ['Darwin', 'Linux']:
             symlink_src = actual_driver_filename
-            symlink_target = os.path.join(self.link_path, driver_filename+get_random_string(4))
+            symlink_target = os.path.join(self.link_path, driver_filename)
+            if os.path.exists(symlink_target):
+                symlink_target = os.path.join(self.link_path, driver_filename+get_random_string(4))
             if os.path.islink(symlink_target):
                 if os.path.samefile(symlink_src, symlink_target):
                     logger.info("Symlink already exists: {0} -> {1}".format(symlink_target, symlink_src))
