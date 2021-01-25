@@ -160,7 +160,7 @@ class WebDriverDownloaderBase:
             logger.error(error_message)
             raise RuntimeError(error_message)
 
-    def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True, custom_folder=False):
+    def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True, custom_folder=False, symlink=True):
         """
         Method for downloading a web driver binary, extracting it into the download directory and creating a symlink
         to the binary in the link directory.
@@ -212,25 +212,31 @@ class WebDriverDownloaderBase:
         if os_name in ['Darwin', 'Linux']:
             symlink_src = actual_driver_filename
             symlink_target = os.path.join(self.link_path, driver_filename)
-            if os.path.islink(symlink_target):
-                if os.path.samefile(symlink_src, symlink_target):
-                    logger.info("Symlink already exists: {0} -> {1}".format(symlink_target, symlink_src))
-                    return tuple([symlink_src, symlink_target])
-                else:
-                    logger.warning("Symlink {0} already exists and will be overwritten.".format(symlink_target))
-                    os.unlink(symlink_target)
-            os.symlink(symlink_src, symlink_target)
-            logger.info("Created symlink: {0} -> {1}".format(symlink_target, symlink_src))
-            st = os.stat(symlink_src)
-            os.chmod(symlink_src, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-            return tuple([symlink_src, symlink_target])
+            if symlink:
+                if os.path.islink(symlink_target):
+                    if os.path.samefile(symlink_src, symlink_target):
+                        logger.info("Symlink already exists: {0} -> {1}".format(symlink_target, symlink_src))
+                        return tuple([symlink_src, symlink_target])
+                    else:
+                        logger.warning("Symlink {0} already exists and will be overwritten.".format(symlink_target))
+                        os.unlink(symlink_target)
+                os.symlink(symlink_src, symlink_target)
+                logger.info("Created symlink: {0} -> {1}".format(symlink_target, symlink_src))
+                st = os.stat(symlink_src)
+                os.chmod(symlink_src, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                return tuple([symlink_src, symlink_target])
+            else:
+                return symlink_src
         elif os_name == "Windows":
             src_file = actual_driver_filename
             dest_file = os.path.join(self.link_path, driver_filename)
-            if os.path.isfile(dest_file):
-                logger.info("File {0} already exists and will be overwritten.".format(dest_file))
-            shutil.copy2(src_file, dest_file)
-            return tuple([src_file, dest_file])
+            if symlink:
+                if os.path.isfile(dest_file):
+                    logger.info("File {0} already exists and will be overwritten.".format(dest_file))
+                shutil.copy2(src_file, dest_file)
+                return tuple([src_file, dest_file])
+            else:
+                return src_file
 
 
 class GeckoDriverDownloader(WebDriverDownloaderBase):
