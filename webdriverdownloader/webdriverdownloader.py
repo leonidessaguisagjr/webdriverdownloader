@@ -4,7 +4,6 @@ Module for managing the download of Selenium webdriver binaries.
 This code is released under the MIT license.
 """
 import abc
-import logging
 import os
 import os.path
 from pathlib import Path
@@ -12,26 +11,17 @@ import platform
 import shutil
 import stat
 import tarfile
-try:
-    from urlparse import urlparse, urlsplit  # Python 2.x import
-except ImportError:
-    from urllib.parse import urlparse, urlsplit  # Python 3.x import
+from urllib.parse import urlparse, urlsplit
 import zipfile
-
 from bs4 import BeautifulSoup
 import requests
 import tqdm
 import random
 import string
 from .util import get_architecture_bitness
+from loguru import logger
 
-
-logger = logging.getLogger(__name__)
-
-def get_random_string(length):
-    letters = string.ascii_lowercase
-    result_str = ''.join(random.choice(letters) for i in range(length))
-    return result_str
+logger.disable("webdriverdownloader")
 
 class WebDriverDownloaderBase:
     """Abstract Base Class for the different web driver downloaders
@@ -52,8 +42,8 @@ class WebDriverDownloaderBase:
                         platform.system() to get the OS.
         """
         if os_name is None:
-            os_name = platform.system()
-        if os_name in ['Darwin', 'Linux'] and os.geteuid() == 0:
+            self.os_name = platform.system()
+        if self.os_name in ['Darwin', 'Linux'] and os.geteuid() == 0:
             base_path = "/usr/local"
         else:
             base_path = os.path.expanduser("~")
@@ -131,34 +121,36 @@ class WebDriverDownloaderBase:
         :param show_progress_bar: Boolean (default=True) indicating if a progress bar should be shown in the console.
         :returns: The path + filename to the downloaded web driver binary.
         """
-        download_url = self.get_download_url(version, os_name=os_name, bitness=bitness)
-        filename = os.path.split(urlparse(download_url).path)[1]
-        filename_with_path = os.path.join(self.get_download_path(version), filename)
-        if not os.path.isdir(self.get_download_path(version)):
-            os.makedirs(self.get_download_path(version))
-        if os.path.isfile(filename_with_path):
+        download_url = self.get_download_url(version, bitness=bitness)
+        filename = os.path.split(urlparse(download_url).path)[1].split('%2F')[1]
+        self.download_path = self.get_download_path(version)
+        filename_with_path = os.path.join(self.download_path, filename)
+        if not os.path.exists(self.download_path):
+            os.makedirs(self.download_path)
+        if os.path.exists(filename_with_path):
             logger.info("Skipping download. File {0} already on filesystem.".format(filename_with_path))
             return filename_with_path
-        data = requests.get(download_url, stream=True)
-        if data.status_code == 200:
-            logger.debug("Starting download of {0} to {1}".format(download_url, filename_with_path))
-            with open(filename_with_path, mode="wb") as fileobj:
-                chunk_size = 1024
-                if show_progress_bar:
-                    expected_size = int(data.headers['Content-Length'])
-                    for chunk in tqdm.tqdm(data.iter_content(chunk_size),
-                                           total=int(expected_size / chunk_size),
-                                           unit='kb'):
-                        fileobj.write(chunk)
-                else:
-                    for chunk in data.iter_content(chunk_size):
-                        fileobj.write(chunk)
-            logger.debug("Finished downloading {0} to {1}".format(download_url, filename_with_path))
-            return filename_with_path
         else:
-            error_message = "Error downloading file {0}, got status code: {1}".format(filename, data.status_code)
-            logger.error(error_message)
-            raise RuntimeError(error_message)
+            data = requests.get(download_url, stream=True)
+            if data.status_code == 200:
+                logger.debug("Starting download of {0} to {1}".format(download_url, filename_with_path))
+                with open(filename_with_path, mode="wb") as fileobj:
+                    chunk_size = 1024
+                    if show_progress_bar:
+                        expected_size = int(data.headers['Content-Length'])
+                        for chunk in tqdm.tqdm(data.iter_content(chunk_size),
+                                               total=int(expected_size / chunk_size),
+                                               unit='kb'):
+                            fileobj.write(chunk)
+                    else:
+                        for chunk in data.iter_content(chunk_size):
+                            fileobj.write(chunk)
+                logger.debug("Finished downloading {0} to {1}".format(download_url, filename_with_path))
+                return filename_with_path
+            else:
+                error_message = "Error downloading file {0}, got status code: {1}".format(filename, data.status_code)
+                logger.error(error_message)
+                raise RuntimeError(error_message)
 
     def download_and_install(self, version="latest", os_name=None, bitness=None, show_progress_bar=True, custom_folder=False):
         """
@@ -176,58 +168,68 @@ class WebDriverDownloaderBase:
         :returns: Tuple containing the path + filename to [0] the extracted binary, and [1] the symlink to the
                   extracted binary.
         """
+        zip = False
+        tar = False
         filename_with_path = self.download(version,
                                            os_name=os_name,
                                            bitness=bitness,
                                            show_progress_bar=show_progress_bar)
-        filename = os.path.split(filename_with_path)[1]
-        if filename.lower().endswith(".tar.gz"):
-            extract_dir = os.path.join(self.get_download_path(version), filename[:-7])
-        elif filename.lower().endswith(".zip"):
-            extract_dir = os.path.join(self.get_download_path(version), filename[:-4])
+
+        file_name_list = os.path.split(filename_with_path)[1].split('.')
+        filename = file_name_list[0]
+        if len(file_name_list) == 2 and ('zip' in file_name_list):
+            zip = True
+            extract_dir = os.path.join(self.download_path, filename)
+        elif len(file_name_list) == 3 and ('tar' in file_name_list):
+            tar = True
+            extract_dir = os.path.join(self.download_path, filename)
         else:
             error_message = "Unknown archive format: {0}".format(filename)
             logger.error(error_message)
             raise RuntimeError(error_message)
+
         if custom_folder:
             extract_dir += f'{get_random_string(6)}'
-        if not os.path.isdir(extract_dir):
+        if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
             logger.debug("Created directory: {0}".format(extract_dir))
-        if filename.lower().endswith(".tar.gz"):
-            with tarfile.open(os.path.join(self.get_download_path(version), filename), mode="r:*") as tar:
-                tar.extractall(extract_dir)
-                logger.debug("Extracted files: {0}".format(", ".join(tar.getnames())))
-        elif filename.lower().endswith(".zip"):
-            with zipfile.ZipFile(os.path.join(self.get_download_path(version), filename), mode="r") as driver_zipfile:
-                driver_zipfile.extractall(extract_dir)
+
+        if tar:
+            with tarfile.open(filename_with_path, mode="r:*") as tar_file:
+                tar_file.extractall(extract_dir)
+                # logger.debug(f"Extracted files: {','.join(tar_file.getnames())}")
+
+        if zip:
+            with zipfile.ZipFile(filename_with_path, mode="r") as zip_file:
+                zip_file.extractall(extract_dir)
+                # logger.debug(f"Extracted files: {','.join(zip_file.namelist())}")
+
         driver_filename = self.get_driver_filename(os_name=os_name)
-        for root, dirs, files in os.walk(extract_dir):
-            for curr_file in files:
-                if curr_file == driver_filename:
-                    actual_driver_filename = os.path.join(root, curr_file)
-                    break
-        if os_name is None:
-            os_name = platform.system()
+
+        os_name = self.os_name if os_name is None else os_name
+
         if os_name in ['Darwin', 'Linux']:
-            symlink_src = actual_driver_filename
+            symlink_src = [entry.path for entry in os.scandir(extract_dir) if entry.is_file() and (entry.name == driver_filename)][-1]
             symlink_target = os.path.join(self.link_path, driver_filename)
-            if os.path.exists(symlink_target):
-                symlink_target = os.path.join(self.link_path, driver_filename+get_random_string(4))
+
+
             if os.path.islink(symlink_target):
-                if os.path.samefile(symlink_src, symlink_target):
-                    logger.info("Symlink already exists: {0} -> {1}".format(symlink_target, symlink_src))
-                    return tuple([symlink_src, symlink_target])
-                else:
-                    logger.warning("Symlink {0} already exists and will be overwritten.".format(symlink_target))
+                try:
+                    same_file_link = os.path.samefile(symlink_src, symlink_target)
+                except FileNotFoundError:
                     os.unlink(symlink_target)
+                else:
+                    if same_file_link:
+                        logger.info("Symlink already exists: {0} -> {1}".format(symlink_target, symlink_src))
+                        return tuple([symlink_src, symlink_target])
+
             os.symlink(symlink_src, symlink_target)
-            logger.info("Created symlink: {0} -> {1}".format(symlink_target, symlink_src))
+            logger.info(f"Created symlink: {symlink_target} -> {symlink_src}")
             st = os.stat(symlink_src)
             os.chmod(symlink_src, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             return tuple([symlink_src, symlink_target])
         elif os_name == "Windows":
-            src_file = actual_driver_filename
+            src_file = [entry.path for entry in os.scandir(extract_dir) if entry.is_file() and (entry.name == driver_filename)][-1]
             dest_file = os.path.join(self.link_path, driver_filename)
             if os.path.isfile(dest_file):
                 logger.info("File {0} already exists and will be overwritten.".format(dest_file))
@@ -361,12 +363,10 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
                         platform.system() to get the OS.
         :returns: The filename of the web driver binary.
         """
-        if os_name is None:
-            os_name = platform.system()
-        if os_name == "Windows":
-            return "chromedriver.exe"
-        else:
-            return "chromedriver"
+
+        os_name = self.os_name if not os_name else os_name
+        return "chromedriver" if os_name != 'Windows' else "chromedriver.exe"
+
 
     def get_download_path(self, version="latest"):
         if version == "latest":
@@ -391,14 +391,14 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
         if version == "latest":
             version = self._get_latest_version_number()
 
-        if os_name is None:
-            os_name = platform.system()
-            if os_name == "Darwin":
-                os_name = "mac"
-            elif os_name == "Windows":
-                os_name = "win"
-            elif os_name == "Linux":
-                os_name = "linux"
+        os_map = {
+            "Darwin": "mac",
+            "Windows": "win",
+            "Linux": "linux"
+        }
+
+        os_name = os_map[self.os_name] if os_name is None else os_name
+
         if bitness is None:
             bitness = get_architecture_bitness()
             logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
@@ -411,11 +411,9 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
             logger.error(error_message)
             raise RuntimeError(error_message)
         elif len(os_matching_versions) == 1:
-            result = os_matching_versions[0]['mediaLink']
+            return os_matching_versions[0]['mediaLink']
         elif len(os_matching_versions) == 2:
-            result = [item for item in matching_versions if os_name + bitness in item['name']][0]['mediaLink']
-
-        return result
+            return [item for item in matching_versions if os_name + bitness in item['name']][0]['mediaLink']
 
 
 class OperaChromiumDriverDownloader(WebDriverDownloaderBase):

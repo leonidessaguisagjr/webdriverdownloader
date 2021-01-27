@@ -35,6 +35,8 @@ This module is dependent on the following additional packages:
 - `beautifulsoup4 <https://pypi.org/project/beautifulsoup4/>`_
 - `requests <https://pypi.org/project/requests/>`_
 - `tqdm <https://pypi.org/project/tqdm/>`_
+- `py-cpuinfo <https://pypi.org/project/py-cpuinfo/>`_
+- `loguru <https://pypi.org/project/loguru/>`
 
 
 Classes
@@ -50,8 +52,7 @@ The following classes are available:
 Status
 ------
 
-Currently being developed/tested using Python 2.7.16 and 3.8.1 on macOS and
-Windows 10.
+Currently being developed/tested using 3.8.1 on macOS.
 
 
 Example module usage

@@ -1,3 +1,7 @@
 beautifulsoup4>=4.7.1
 requests>=2.21.0
 tqdm>=4.31.1
+py-cpuinfo>=7
+loguru>=0.5
+pytest>=6.0
+selenium
