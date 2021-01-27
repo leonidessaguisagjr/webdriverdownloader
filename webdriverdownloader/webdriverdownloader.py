@@ -211,8 +211,6 @@ class WebDriverDownloaderBase:
         if os_name in ['Darwin', 'Linux']:
             symlink_src = [entry.path for entry in os.scandir(extract_dir) if entry.is_file() and (entry.name == driver_filename)][-1]
             symlink_target = os.path.join(self.link_path, driver_filename)
-
-
             if os.path.islink(symlink_target):
                 try:
                     same_file_link = os.path.samefile(symlink_src, symlink_target)
