@@ -334,15 +334,17 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
     """
 
     chrome_driver_base_url = 'https://www.googleapis.com/storage/v1/b/chromedriver'
+    googlechromelabs_github_url = 'https://googlechromelabs.github.io'
 
     def _get_latest_version_number(self):
-        resp = requests.get(self.chrome_driver_base_url + '/o/LATEST_RELEASE')
+        resp = requests.get(self.googlechromelabs_github_url + '/chrome-for-testing/LATEST_RELEASE_STABLE')
         if resp.status_code != 200:
             error_message = "Error, unable to get version number for latest release, got code: {0}".format(resp.status_code)
             logger.error(error_message)
             raise RuntimeError(error_message)
-        latest_release = requests.get(resp.json()['mediaLink'])
-        return latest_release.text
+        latest_release = resp.text
+        logger.debug(f"Latest Stable Chrome Version: {latest_release}")
+        return latest_release
 
     def get_driver_filename(self, os_name=None):
         """
@@ -394,17 +396,38 @@ class ChromeDriverDownloader(WebDriverDownloaderBase):
             bitness = get_architecture_bitness()
             logger.debug("Detected OS: {0}bit {1}".format(bitness, os_name))
 
-        chrome_driver_objects = requests.get(self.chrome_driver_base_url + '/o')
-        matching_versions = [item for item in chrome_driver_objects.json()['items'] if item['name'].startswith(version)]
-        os_matching_versions = [item for item in matching_versions if os_name in item['name']]
-        if not os_matching_versions:
-            error_message = "Error, unable to find appropriate download for {0}.".format(os_name + bitness)
-            logger.error(error_message)
-            raise RuntimeError(error_message)
-        elif len(os_matching_versions) == 1:
-            result = os_matching_versions[0]['mediaLink']
-        elif len(os_matching_versions) == 2:
-            result = [item for item in matching_versions if os_name + bitness in item['name']][0]['mediaLink']
+        if version < "115":
+            chrome_driver_objects = requests.get(self.chrome_driver_base_url + '/o')
+            matching_versions = [item for item in chrome_driver_objects.json()['items'] if item['name'].startswith(version)]
+            os_matching_versions = [item for item in matching_versions if os_name in item['name']]
+            if not os_matching_versions:
+                error_message = "Error, unable to find appropriate download for {0}.".format(os_name + bitness)
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+            elif len(os_matching_versions) == 1:
+                result = os_matching_versions[0]['mediaLink']
+            elif len(os_matching_versions) == 2:
+                result = [item for item in matching_versions if os_name + bitness in item['name']][0]['mediaLink']
+        else:
+            chrome_driver_objects = requests.get(self.googlechromelabs_github_url + '/chrome-for-testing/known-good-versions-with-downloads.json')
+            matching_version = None
+            for item in chrome_driver_objects.json()['versions']:
+                if item['version'].startswith(version):
+                    matching_version = item
+            if not matching_version:
+                error_message = f"Error, unable to find matching version for {version}"
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+            matching_download = None
+            if "chromedriver" in matching_version["downloads"]:
+                for download in matching_version["downloads"]["chromedriver"]:
+                    if download["platform"] == os_name + bitness:
+                        matching_download = download
+            if not matching_download:
+                error_message = "Error, unable to find appropriate download for {0}.".format(os_name + bitness)
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+            result = matching_download["url"]
 
         return result
 
