@@ -317,7 +317,7 @@ class GeckoDriverDownloader(WebDriverDownloaderBase):
             logger.error(info_message)
             raise RuntimeError(info_message)
         if len(filename) > 1:
-            filename = [name for name in filenames if os_name + bitness in name]
+            filename = [name for name in filenames if os_name + bitness in name and name[-3:] != 'asc' ]
             if len(filename) != 1:
                 info_message = "Error, unable to determine correct filename for {0}bit {1}".format(bitness, os_name)
                 logger.error(info_message)
